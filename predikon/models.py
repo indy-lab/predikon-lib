@@ -125,12 +125,13 @@ class MatrixFactorisation(Model):
         self.lam_V = lam_V
         self.n_dim = n_dim
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
+    def fit_predict(self, m_current):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         for i in range(self.n_iter_cache):
-            observed = np.zeros_like(m, dtype=bool)
+            observed = np.zeros_like(m_current, dtype=bool)
             observed[m_obs_ixs] = True
-            self.update_U(m, observed)
-            self.update_V(m, observed)
+            self.update_U(m_current, observed)
+            self.update_V(m_current, observed)
         return self.U @ self.V[-1, :]
 
     def update_U(self, m, observed):
@@ -190,13 +191,15 @@ class SubSVD(Model):
         self.l2_reg = l2_reg
         self.add_bias = add_bias
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
-        Uo, mo = self.U[m_obs_ixs], m[m_obs_ixs]
+    def fit_predict(self, m_current):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
+        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
         if self.l2_reg is not None and self.l2_reg != 0:
             ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
             ridge.fit(Uo, mo)
             return ridge.predict(self.U)
         else:
+            # TODO: add bias for non-regularized model
             x, _, _, _ = np.linalg.lstsq(Uo, mo, 1e-9)
             return self.U @ x
 
@@ -207,13 +210,15 @@ class SubSVD(Model):
 
 class WeightedSubSVD(SubSVD):
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
-        Uo, mo, wo = self.U[m_obs_ixs], m[m_obs_ixs], self.weighting[m_obs_ixs]
+    def fit_predict(self, m_current):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
+        Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
         if self.l2_reg is not None and self.l2_reg != 0:
             ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
             ridge.fit(Uo, mo, sample_weight=wo)
             return ridge.predict(self.U)
         else:
+            # TODO: add bias for non-regularized model
             wo_sqrt = np.sqrt(wo)
             x, _, _, _ = np.linalg.lstsq(
                 Uo * wo_sqrt.reshape(-1, 1), mo * wo_sqrt, 1e-9)
@@ -241,8 +246,9 @@ class LogisticSubSVD(SubSVD):
         X = np.tile(Uo, (2, 1))
         return X, y, wts
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
-        Uo, mo = self.U[m_obs_ixs], m[m_obs_ixs]
+    def fit_predict(self, m):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
+        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
         C = 0 if self.l2_reg == 0 else 1 / self.l2_reg
         logreg = LogisticRegression(C=C, fit_intercept=self.add_bias,
                                     solver='liblinear', tol=1e-6, max_iter=500)
@@ -257,8 +263,9 @@ class LogisticSubSVD(SubSVD):
 
 class WeightedLogisticSubSVD(LogisticSubSVD):
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
-        Uo, mo, wo = self.U[m_obs_ixs], m[m_obs_ixs], self.weighting[m_obs_ixs]
+    def fit_predict(self, m_current):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
+        Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
         C = 0 if self.l2_reg == 0 else 1 / self.l2_reg
         logreg = LogisticRegression(C=C, fit_intercept=self.add_bias,
                                     solver='liblinear', tol=1e-6, max_iter=500)
@@ -287,8 +294,9 @@ class TensorSubSVD(Model):
         self.add_bias = add_bias
         self.n_dim = n_dim
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
-        Uo, mo = self.U[m_obs_ixs], m[m_obs_ixs]
+    def fit_predict(self, m_current):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
+        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
         if self.l2_reg is not None and self.l2_reg != 0:
             ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
             ridge.fit(Uo, mo)
@@ -325,8 +333,9 @@ class LogisticTensorSubSVD(TensorSubSVD):
         X = np.tile(Uo, (k, 1))
         return X, y, wts
 
-    def fit_predict(self, m, m_obs_ixs, m_unobs_ixs):
-        Uo, mo = self.U[m_obs_ixs], m[m_obs_ixs]
+    def fit_predict(self, m_current):
+        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
+        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
         X, y, wts = self.transform_problem(Uo, mo)
         self.model.fit(X, y, sample_weight=wts)
         return self.model.predict_proba(self.U)
