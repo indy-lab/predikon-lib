@@ -1,5 +1,6 @@
 # Predikon: online prediction of election results
-
+[![Build Status](https://travis-ci.com/indy-lab/predikon.svg?branch=master)](https://travis-ci.com/indy-lab/predikon)
+[![Coverage Status](https://coveralls.io/repos/github/indy-lab/predikon/badge.svg?branch=master)](https://coveralls.io/github/indy-lab/predikon?branch=master)
 ## Installation
 
 ```bash
