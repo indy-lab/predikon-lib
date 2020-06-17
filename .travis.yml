@@ -1,6 +1,5 @@
 language: python
 python:
-- '3.3'
 - '3.4'
 - '3.5'
 - '3.6'
@@ -8,6 +7,7 @@ python:
 install:
 - pip install -r requirements.txt
 - pip install .
+- pip install --upgrade pytest pytest-cov python-coveralls
 - pip install pytest pytest-cov python-coveralls
 cache:
 - pip
