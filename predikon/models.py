@@ -20,20 +20,17 @@ class Model:
     pred = m.fit_predict(m_current)
     # pred has filled nans with predictions.
     ```
+    Parameters
+    ----------
+    M_historical : np.array
+        RxV or RxVxP dimensional array with outcomes in [0,1].
+        R regions, V votes/elections, P parties (if non-binary outcome)
+    weighting : np.array
+        R dimensional array with weights associated to each region
+        if `weighting=None` the algorithm is unweighted
+        (equivalent to np.ones(R))
     """
-
     def __init__(self, M_historical, weighting):
-        """
-        Parameters
-        ----------
-        M_historical : np.array
-            RxV or RxVxP dimensional array with outcomes in [0,1].
-            R regions, V votes/elections, P parties (if non-binary outcome)
-        weighting : np.array
-            R dimensional array with weights associated to each region
-            if `weighting=None` the algorithm is unweighted
-            (equivalent to np.ones(R))
-        """
         self.M_historical = M_historical
         # make weights sum to R
         self.weighting = weighting / np.sum(weighting) * M_historical.shape[0]
@@ -79,6 +76,10 @@ class Model:
 
 
 class Averaging(Model):
+    """
+    Simple model that averages the outcome of the current election
+    to predict for all other regions ignoring the weighting.
+    """
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
@@ -92,6 +93,12 @@ class Averaging(Model):
 
 
 class WeightedAveraging(Model):
+    """
+    Same as `Averaging` but additionally weighs the observed
+    entries in `m_current` by the given weights.
+    This model is preferred over Averaging if population or
+    counts of votes are available.
+    """
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
@@ -109,9 +116,40 @@ class WeightedAveraging(Model):
 
 
 class MatrixFactorisation(Model):
+    """
+    Probabilistic matrix factorization model that implements
+    alternating least-squares to minimize the following loss
 
+    ``L(U, V) = 1/2 \|M - UV^T\|_2^2 + lam_U/2 \|U\|_2^2 + lam_V/2 \|V\|_2^2``
+    where U, V contain the latent factors and M is the concatenation
+    of `M_historical` and `m_current`.
+    `U` and `V` are updated in an alternating fashion.
+    For the updates, see `update_U` and `update_V`.
+    Variables are initialized uniformly between 0 and 1/(n_dim+1)
+    `U` is a `Region x (n_dim+1)` and `V` a `Votes x (n_dim+1)` matrix.
+    The dimensionality is increased because we include a bias per vote
+    as _Etter et al (2016)_.
+
+    Matrix factorization for regional vote prediction is proposed
+    in _Online Collaborative Prediction of Regional Vote Results_
+    by Etter et al., DSAA 2016_.
+
+    Parameters (additional to `Model`)
+    ----------
+    n_iter : int
+        number of alternating iterations. `n_iter` determines how often
+        `U`, and `V` are updated each.
+    n_dim : int
+        number of latent dimensions. Does not include the bias added
+        to each vote.
+    lam_U : float
+        regularization strength for latent factors `U`
+    lam_V : float
+        regularization strength for latent factors `V`
+    """
     def __init__(self, M_historical, weighting, n_iter=20, n_dim=25,
                  lam_U=1e-1, lam_V=1e-1):
+
         super().__init__(M_historical, weighting)
         self.n_iter_cache = n_iter
         if len(M_historical.shape) > 2:
@@ -179,11 +217,36 @@ class MatrixFactorisation(Model):
 
 
 class SubSVD(Model):
+    """Basic SubSVD model as proposed in _Sub-Matrix Factorization for
+    Real-Time Vote Prediction KDD'20 by A. Immer and V. Kristof et al.
+    The `M_historical` fully observed matrix is decomposed using the
+    SVD which is the optimal solution to non-regularized Matrix
+    Factorization. In this case, `M_historical` is `Regions x Votes`.
+    A generalized linear model (GLM) is applied to the low-rank regional
+    representations in `self.U`.
+
+    Here, we implement a Gaussian, Bernoulli, and Categorical likelihood
+    due to their relevance in political forecasting.
+
+    Parameters (additional to `Model`)
+    ----------
+    n_iter : int
+        number of alternating iterations. `n_iter` determines how often
+        `U`, and `V` are updated each.
+    n_dim : int
+        number of latent dimensions. Does not include the bias added
+        to each vote.
+    lam_U : float
+        regularization strength for latent factors `U`
+    lam_V : float
+        regularization strength for latent factors `V`
+    """
 
     def __init__(self, M_historical, weighting,
+
                  n_dim=10, add_bias=True, l2_reg=1e-5, keep_svals=True):
-        if len(M_historical.shape) > 2:
-            raise ValueError('Tensor not factorisable.')
+        if M_historical.ndim > 2:
+            raise ValueError('Tensor not factorisable. Use TensorSubSVD.')
         super().__init__(M_historical, weighting)
         U, s, _ = np.linalg.svd(M_historical)
         self.n_dim = n_dim
