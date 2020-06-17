@@ -227,23 +227,33 @@ class SubSVD(Model):
 
     Here, we implement a Gaussian, Bernoulli, and Categorical likelihood
     due to their relevance in political forecasting.
+    Let U denote the regional features obtained due to the SubSVD.
+    Then, we can formulate the loss as
+
+    ``l(w) = - \sum_{i \in Observed} \log p(y|U_i^T w + b)
+             + l2_reg/ 2 \|w\|_2^2``
+    where U are the regional features and w the parameter of the GLM.
+    b is either 0 if `add_bias=False` or otherwise an optimized parameter.
 
     Parameters (additional to `Model`)
     ----------
-    n_iter : int
-        number of alternating iterations. `n_iter` determines how often
-        `U`, and `V` are updated each.
     n_dim : int
-        number of latent dimensions. Does not include the bias added
-        to each vote.
-    lam_U : float
-        regularization strength for latent factors `U`
-    lam_V : float
-        regularization strength for latent factors `V`
+        number of retained dimensions in the low-rank representation of
+        `M_historical`. Determines the dimensionality of latent regional
+        features.
+    add_bias : Boolean (default: True)
+        determines if bias should be added
+    l2_reg : float
+        strenght of l2-regularization. In line with `lam_U/V` in
+        Matrix factorization.
+    keep_svals : Boolean (default: True)
+        whether to keep the singular values factored into the regional
+        representations in `self.U` which are the features for the GLM.
+        If `l2_reg==0/None` this has no effect. Otherwise it determines
+        the feature importances.
     """
 
     def __init__(self, M_historical, weighting,
-
                  n_dim=10, add_bias=True, l2_reg=1e-5, keep_svals=True):
         if M_historical.ndim > 2:
             raise ValueError('Tensor not factorisable. Use TensorSubSVD.')
@@ -254,6 +264,24 @@ class SubSVD(Model):
         self.l2_reg = l2_reg
         self.add_bias = add_bias
 
+
+class WeightedSubSVD(SubSVD):
+    """Extension of the SubSVD model which makes use of the weighting.
+    The SVD is performed the same while the GLM loss is different.
+    We minimize the following loss now with w_i being `self.weighting[i]`
+    and further assuming `self.weighting.sum() == len(self.weighting)`:
+
+    ``l(w) = - \sum_{i \in Observed} w_i \log p(y|U_i^T w + b)
+             + l2_reg/ 2 \|w\|_2^2``
+    """
+    pass
+
+
+class GaussianSubSVD(SubSVD):
+    """
+    SubSVD model with Gaussian likelihood in the GLM.
+    The Gaussian likelihood has unit variance.
+    """
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
@@ -267,12 +295,15 @@ class SubSVD(Model):
             return self.U @ x
 
     def __repr__(self):
-        return ('SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
+        return ('GaussianSubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
                 str(self.l2_reg) + ')')
 
 
-class WeightedSubSVD(SubSVD):
-
+class WeightedGaussianSubSVD(WeightedSubSVD):
+    """
+    WeightedSubSVD model with Gaussian likelihood in the GLM.
+    The Gaussian likelihood has unit variance.
+    """
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
@@ -288,16 +319,27 @@ class WeightedSubSVD(SubSVD):
             return self.U @ x
 
     def __repr__(self):
-        return ('Weighted SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
-                str(self.l2_reg) + ')')
+        return ('Weighted GaussianSubSVD' + ' (dim=' + str(self.n_dim) + ',l2='
+                + str(self.l2_reg) + ')')
 
 
 class LogisticSubSVD(SubSVD):
+    """
+    SubSVD model with Bernoulli likelihood in the GLM.
+
+    Logistic refers to both Bernoulli and categorical likelihoods.
+    Categorical is used in the Tensor case. Here, we have binary outcomes.
+    """
 
     @staticmethod
     def transform_problem(Uo, mo, wo=None):
-        # Repeat dataset for label y==1 and y==0 and use the probabilities
-        # as weights. This is equal to cross-entropy logistic regression.
+        """
+        Transform observations p in [0,1] to a binary classificaiton problem
+        by turning p into a weight and having both observation 0 and 1.
+
+        To do so, we repeat the dataset for label y==1 and y==0 and use the
+        probabilities as weights. This is equal to cross-entropy regression.
+        """
         n = Uo.shape[0]
         wo = np.ones(n) if wo is None else wo / wo.sum() * n
         wo = np.tile(wo, 2)
@@ -325,6 +367,12 @@ class LogisticSubSVD(SubSVD):
 
 
 class WeightedLogisticSubSVD(LogisticSubSVD):
+    """
+    Weighted SubSVD model with Bernoulli likelihood in the GLM.
+
+    Logistic refers to both Bernoulli and categorical likelihoods.
+    Categorical is used in the Tensor case. Here, we have binary outcomes.
+    """
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
@@ -342,11 +390,40 @@ class WeightedLogisticSubSVD(LogisticSubSVD):
 
 
 class TensorSubSVD(Model):
-    """Folds the m by v by party tensor into m by (v*party) and then
-    factorize"""
+    """Corresponding base model to SubSVD but applicable to non-binary elections.
+    For non-binary outcomes, we assume a tensor of `Regions x Votes x Parties`.
+    _Parties_ refers to the amount of options a voter has.
 
-    def __init__(self, M_historical, weighting, n_dim=10, add_bias=True, l2_reg=1e-5,
-                 keep_svals=True):
+    In comparison to SubSVD, the tensor needs to be collapsed first to apply
+    the SVD. This is simply done by forming a `Regions x (Votes * Parties)`
+    matrix (reshaping).
+    The GLM that is applied works equivalently as before: using the regional
+    feature vector, a linear model predicts the _Parties_-dimensional outcome
+    vector.
+
+    In the subclasses, we have either a multivariate Gaussian likelihood
+    or a categorical likelihood.
+
+    Parameters (additional to `Model`)
+    ----------
+    n_dim : int
+        number of retained dimensions in the low-rank representation of
+        `M_historical`. Determines the dimensionality of latent regional
+        features.
+    add_bias : Boolean (default: True)
+        determines if bias should be added
+    l2_reg : float
+        strenght of l2-regularization. In line with `lam_U/V` in
+        Matrix factorization.
+    keep_svals : Boolean (default: True)
+        whether to keep the singular values factored into the regional
+        representations in `self.U` which are the features for the GLM.
+        If `l2_reg==0/None` this has no effect. Otherwise it determines
+        the feature importances.
+    """
+
+    def __init__(self, M_historical, weighting, n_dim=10, add_bias=True,
+                 l2_reg=1e-5, keep_svals=True):
         if len(M_historical.shape) < 3:
             raise ValueError('Requires Tensor')
         super().__init__(M_historical, weighting)
@@ -356,6 +433,12 @@ class TensorSubSVD(Model):
         self.l2_reg = l2_reg
         self.add_bias = add_bias
         self.n_dim = n_dim
+
+
+class GaussianTensorSubSVD(TensorSubSVD):
+    """
+    TensorSubSVD with Gaussian likelihood for the GLM
+    """
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
@@ -370,11 +453,15 @@ class TensorSubSVD(Model):
             return self.U @ x
 
     def __repr__(self):
-        return ('SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
+        return ('Gaussian SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
                 str(self.l2_reg) + ')')
 
 
 class LogisticTensorSubSVD(TensorSubSVD):
+    """TensorSubSVD with Categorical likelihood with _Parties_ categories.
+    All parameters are as in TensorSubSVD but we additionally initialize
+    the logistic model (categorical GLM) for warmstarts.
+    """
 
     def __init__(self, M_historical, weighting, n_dim=10, add_bias=True, l2_reg=1e-5,
                  keep_svals=True):
@@ -387,6 +474,16 @@ class LogisticTensorSubSVD(TensorSubSVD):
 
     @staticmethod
     def transform_problem(Uo, mo):
+        """
+        Transform non-categorical floating outcomes to categorical outcomes
+        and corresponding weights.
+        (similar to LogisticSubSVD.transform_problem)
+
+        The _Parties_-dimensional rows of `mo` need to sum to 1 but each entry
+        can be a float in `[0,1]`.
+        Then, we make _Parties_ observations out of this that are categorical
+        and each is weighted by the probability indicated as in `mo`.
+        """
         n, k = mo.shape
         # classes 0*n, 1*n, ..., k*n
         y = np.arange(k).repeat(n)
