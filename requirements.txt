@@ -1,0 +1,4 @@
+numpy==1.16.1
+sklearn==0.0
+pytest
+pytest-cov
