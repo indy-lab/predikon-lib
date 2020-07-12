@@ -31,6 +31,9 @@ class Model:
         (equivalent to np.ones(R))
     """
     def __init__(self, M_historical, weighting):
+        assert weighting.ndim == 1
+        # weights apply to regions only
+        assert len(weighting) == M_historical.shape[0]
         self.M_historical = M_historical
         # make weights sum to R
         self.weighting = weighting / np.sum(weighting) * M_historical.shape[0]
@@ -230,7 +233,7 @@ class SubSVD(Model):
     Let U denote the regional features obtained due to the SubSVD.
     Then, we can formulate the loss as
 
-    ``l(w) = - \sum_{i \in Observed} \log p(y|U_i^T w + b)
+    ``l(w) = - sum_{i \\in Observed} \log p(y|U_i^T w + b)
              + l2_reg/ 2 \|w\|_2^2``
     where U are the regional features and w the parameter of the GLM.
     b is either 0 if `add_bias=False` or otherwise an optimized parameter.
@@ -271,7 +274,7 @@ class WeightedSubSVD(SubSVD):
     We minimize the following loss now with w_i being `self.weighting[i]`
     and further assuming `self.weighting.sum() == len(self.weighting)`:
 
-    ``l(w) = - \sum_{i \in Observed} w_i \log p(y|U_i^T w + b)
+    ``l(w) = - sum_{i \\in Observed} w_i \log p(y|U_i^T w + b)
              + l2_reg/ 2 \|w\|_2^2``
     """
     pass
@@ -351,7 +354,7 @@ class LogisticSubSVD(SubSVD):
         X = np.tile(Uo, (2, 1))
         return X, y, wts
 
-    def fit_predict(self, m):
+    def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
         C = 0 if self.l2_reg == 0 else 1 / self.l2_reg

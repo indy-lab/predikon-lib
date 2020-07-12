@@ -2,4 +2,4 @@ __pycache__
 *.pyc
 .coverage
 *.egg-info
-
+*.DS_STORE
