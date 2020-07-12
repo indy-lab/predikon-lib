@@ -69,9 +69,9 @@ can be kept low, for example, set between 5 and 10.
 The `l2_reg` parameter defaults to `1e-5` but should be tuned for a particular problem, e.g.,
 using cross-validation.
 
-Alternatively, the standard (weighted) averaging baseline is also available as well as
+Alternatively, the standard (weighted) averaging (`WeightedAveraging`) baseline is also available as well as
 Gaussian versions of SubSVD model (`GaussianSubSVD` and `GaussianTensorSubSVD`).
-Further, for the binary outcome probabilistic matrix factorisation is implemented.
+Further, for the binary outcome probabilistic matrix factorisation (`MatrixFactorisation`) is implemented.
 
 
 ## Installation

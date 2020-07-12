@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 
-from predikon import (Model, Averaging, WeightedAveraging, MatrixFactorisation,
-                      GaussianSubSVD, WeightedGaussianSubSVD, LogisticSubSVD,
-                      WeightedLogisticSubSVD, GaussianTensorSubSVD,
+from predikon import (Model, WeightedAveraging, MatrixFactorisation,
+                      GaussianSubSVD, LogisticSubSVD, GaussianTensorSubSVD,
                       LogisticTensorSubSVD)
 
 """Setup methods"""
@@ -51,8 +50,7 @@ def test_observed_indexes_mat():
 
 
 def test_prediction_not_nan_vec():
-    Models = [MatrixFactorisation, GaussianSubSVD, LogisticSubSVD,
-              WeightedGaussianSubSVD, WeightedLogisticSubSVD]
+    Models = [MatrixFactorisation, GaussianSubSVD, LogisticSubSVD]
     M, w = get_M_w_vec()
     m = np.array([0.0, 0.3, np.nan])
     w = np.array([2, 7, 2])
@@ -74,8 +72,7 @@ def test_prediction_not_nan_mat():
 
 
 def test_prediction_not_nan_vec_unreg():
-    Models = [GaussianSubSVD, LogisticSubSVD,
-              WeightedGaussianSubSVD, WeightedLogisticSubSVD]
+    Models = [GaussianSubSVD, LogisticSubSVD]
     M, w = get_M_w_vec()
     m = np.array([0.0, 0.3, np.nan])
     w = np.array([2, 7, 2])
@@ -101,7 +98,7 @@ def test_prediction_not_nan_mat_unreg():
 def test_averaging():
     M, w = get_M_w_vec()
     m = np.array([0.0, 0.3, np.nan])
-    model = Averaging(M, w)
+    model = WeightedAveraging(M, weighting=None)
     pred = model.fit_predict(m)
     assert pred[-1] == 0.15
 
@@ -110,7 +107,7 @@ def test_averaging_mat():
     M, w = get_M_w_mat()
     m = np.array([0.0, 0.3, np.nan])
     m = np.stack([m, m]).T
-    model = Averaging(M, w)
+    model = WeightedAveraging(M, weighting=None)
     pred = model.fit_predict(m)
     assert np.all(pred[-1] == np.array([0.15, 0.15]))
 

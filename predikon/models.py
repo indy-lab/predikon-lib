@@ -33,7 +33,9 @@ class Model:
         if `weighting=None` the algorithm is unweighted
         (equivalent to np.ones(R))
     """
-    def __init__(self, M_historical, weighting):
+    def __init__(self, M_historical, weighting=None):
+        if weighting is None:
+            weighting = np.ones(M_historical.shape[0])
         if weighting.ndim != 1:
             raise ValueError('Weighting needs to be vector.')
         if len(weighting) != M_historical.shape[0]:
@@ -80,23 +82,6 @@ class Model:
 
     def __repr__(self):
         return 'Predikon BaseModel'
-
-
-class Averaging(Model):
-    """
-    Simple model that averages the outcome of the current election
-    to predict for all other regions ignoring the weighting.
-    """
-
-    def fit_predict(self, m_current):
-        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
-        pred = m_current[m_obs_ixs].mean(axis=0)
-        pred_col = np.ones_like(m_current) * pred
-        pred_col[m_obs_ixs] = m_current[m_obs_ixs]
-        return pred_col
-
-    def __repr__(self):
-        return 'Averaging'
 
 
 class WeightedAveraging(Model):
@@ -236,9 +221,10 @@ class SubSVD(Model):
     Here, we implement a Gaussian, Bernoulli, and Categorical likelihood
     due to their relevance in political forecasting.
     Let U denote the regional features obtained due to the SubSVD.
-    Then, we can formulate the loss as
+    We minimize the following loss now with w_i being `self.weighting[i]`
+    and further assuming `self.weighting.sum() == len(self.weighting)`:
 
-    ``l(w) = - sum_{i \\in Observed} \log p(y|U_i^T w + b)
+    ``l(w) = - sum_{i \\in Observed} w_i \log p(y|U_i^T w + b)
              + l2_reg/ 2 \|w\|_2^2``
     where U are the regional features and w the parameter of the GLM.
     b is either 0 if `add_bias=False` or otherwise an optimized parameter.
@@ -261,7 +247,7 @@ class SubSVD(Model):
         the feature importances.
     """
 
-    def __init__(self, M_historical, weighting,
+    def __init__(self, M_historical, weighting=None,
                  n_dim=10, add_bias=True, l2_reg=1e-5, keep_svals=True):
         if M_historical.ndim > 2:
             raise ValueError('Tensor not factorisable. Use TensorSubSVD.')
@@ -273,41 +259,7 @@ class SubSVD(Model):
         self.add_bias = add_bias
 
 
-class WeightedSubSVD(SubSVD):
-    """Extension of the SubSVD model which makes use of the weighting.
-    The SVD is performed the same while the GLM loss is different.
-    We minimize the following loss now with w_i being `self.weighting[i]`
-    and further assuming `self.weighting.sum() == len(self.weighting)`:
-
-    ``l(w) = - sum_{i \\in Observed} w_i \log p(y|U_i^T w + b)
-             + l2_reg/ 2 \|w\|_2^2``
-    """
-    pass
-
-
 class GaussianSubSVD(SubSVD):
-    """
-    SubSVD model with Gaussian likelihood in the GLM.
-    The Gaussian likelihood has unit variance.
-    """
-    def fit_predict(self, m_current):
-        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
-        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
-        if self.l2_reg is not None and self.l2_reg != 0:
-            ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
-            ridge.fit(Uo, mo)
-            return ridge.predict(self.U)
-        else:
-            # TODO: add bias for non-regularized model
-            x, _, _, _ = np.linalg.lstsq(Uo, mo, 1e-9)
-            return self.U @ x
-
-    def __repr__(self):
-        return ('GaussianSubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
-                str(self.l2_reg) + ')')
-
-
-class WeightedGaussianSubSVD(WeightedSubSVD):
     """
     WeightedSubSVD model with Gaussian likelihood in the GLM.
     The Gaussian likelihood has unit variance.
@@ -315,19 +267,14 @@ class WeightedGaussianSubSVD(WeightedSubSVD):
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
-        if self.l2_reg is not None and self.l2_reg != 0:
-            ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
-            ridge.fit(Uo, mo, sample_weight=wo)
-            return ridge.predict(self.U)
-        else:
-            # TODO: add bias for non-regularized model
-            wo_sqrt = np.sqrt(wo)
-            x, _, _, _ = np.linalg.lstsq(
-                Uo * wo_sqrt.reshape(-1, 1), mo * wo_sqrt, 1e-9)
-            return self.U @ x
+        if self.l2_reg is None or self.l2_reg == 0:
+            self.l2_reg = 1 / LARGE_FLOAT
+        ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
+        ridge.fit(Uo, mo, sample_weight=wo)
+        return ridge.predict(self.U)
 
     def __repr__(self):
-        return ('Weighted GaussianSubSVD' + ' (dim=' + str(self.n_dim) + ',l2='
+        return ('GaussianSubSVD' + ' (dim=' + str(self.n_dim) + ',l2='
                 + str(self.l2_reg) + ')')
 
 
@@ -340,7 +287,7 @@ class LogisticSubSVD(SubSVD):
     """
 
     @staticmethod
-    def transform_problem(Uo, mo, wo=None):
+    def transform_problem(Uo, mo, wo):
         """
         Transform observations p in [0,1] to a binary classificaiton problem
         by turning p into a weight and having both observation 0 and 1.
@@ -349,7 +296,6 @@ class LogisticSubSVD(SubSVD):
         probabilities as weights. This is equal to cross-entropy regression.
         """
         n = Uo.shape[0]
-        wo = np.ones(n) if wo is None else wo / wo.sum() * n
         wo = np.tile(wo, 2)
         y = np.zeros(2*n)
         y[:n] = 1
@@ -358,29 +304,6 @@ class LogisticSubSVD(SubSVD):
         wts = wts * wo
         X = np.tile(Uo, (2, 1))
         return X, y, wts
-
-    def fit_predict(self, m_current):
-        m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
-        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
-        C = LARGE_FLOAT if self.l2_reg == 0 else 1 / self.l2_reg
-        logreg = LogisticRegression(C=C, fit_intercept=self.add_bias,
-                                    solver='liblinear', tol=1e-6, max_iter=500)
-        X, y, wts = self.transform_problem(Uo, mo, None)
-        logreg.fit(X, y, sample_weight=wts)
-        return logreg.predict_proba(self.U)[:, 1]
-
-    def __repr__(self):
-        return ('Logistic SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
-                str(self.l2_reg) + ')')
-
-
-class WeightedLogisticSubSVD(LogisticSubSVD):
-    """
-    Weighted SubSVD model with Bernoulli likelihood in the GLM.
-
-    Logistic refers to both Bernoulli and categorical likelihoods.
-    Categorical is used in the Tensor case. Here, we have binary outcomes.
-    """
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
@@ -393,7 +316,7 @@ class WeightedLogisticSubSVD(LogisticSubSVD):
         return logreg.predict_proba(self.U)[:, 1]
 
     def __repr__(self):
-        return ('Weighted Logistic SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
+        return ('Logistic SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
                 str(self.l2_reg) + ')')
 
 
@@ -450,15 +373,12 @@ class GaussianTensorSubSVD(TensorSubSVD):
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
-        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
-        if self.l2_reg is not None and self.l2_reg != 0:
-            ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
-            ridge.fit(Uo, mo)
-            return ridge.predict(self.U)
-        else:
-            # TODO: add bias here?
-            x, _, _, _ = np.linalg.lstsq(Uo, mo, 1e-9)
-            return self.U @ x
+        Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
+        if self.l2_reg == 0:
+            self.l2_reg = 1 / LARGE_FLOAT
+        ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
+        ridge.fit(Uo, mo, sample_weight=wo)
+        return ridge.predict(self.U)
 
     def __repr__(self):
         return ('Gaussian SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
@@ -474,14 +394,14 @@ class LogisticTensorSubSVD(TensorSubSVD):
     def __init__(self, M_historical, weighting, n_dim=10, add_bias=True, l2_reg=1e-5,
                  keep_svals=True):
         super().__init__(M_historical, weighting, n_dim, add_bias, l2_reg, keep_svals)
-        C = 0 if self.l2_reg == 0 else 1 / self.l2_reg
+        C = LARGE_FLOAT if self.l2_reg == 0 else 1 / self.l2_reg
         self.model = LogisticRegression(C=C, fit_intercept=add_bias, tol=1e-6,
                                         solver='newton-cg', max_iter=5000,
                                         multi_class='multinomial', n_jobs=4,
                                         warm_start=True)
 
     @staticmethod
-    def transform_problem(Uo, mo):
+    def transform_problem(Uo, mo, wo):
         """
         Transform non-categorical floating outcomes to categorical outcomes
         and corresponding weights.
@@ -493,18 +413,20 @@ class LogisticTensorSubSVD(TensorSubSVD):
         and each is weighted by the probability indicated as in `mo`.
         """
         n, k = mo.shape
+        wo = np.tile(wo, k)
         # classes 0*n, 1*n, ..., k*n
         y = np.arange(k).repeat(n)
         # weights are probabilities of respective class
         wts = mo.reshape(-1, order='F')
         # repeat data
         X = np.tile(Uo, (k, 1))
+        wts = wts * wo
         return X, y, wts
 
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
-        Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
-        X, y, wts = self.transform_problem(Uo, mo)
+        Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
+        X, y, wts = self.transform_problem(Uo, mo, wo)
         self.model.fit(X, y, sample_weight=wts)
         return self.model.predict_proba(self.U)
 
