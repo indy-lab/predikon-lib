@@ -2,6 +2,9 @@ import numpy as np
 from sklearn.linear_model import Ridge, LogisticRegression
 
 
+LARGE_FLOAT = 1e9
+
+
 class Model:
     """
     Base class for online predictive models for regional results.
@@ -31,9 +34,10 @@ class Model:
         (equivalent to np.ones(R))
     """
     def __init__(self, M_historical, weighting):
-        assert weighting.ndim == 1
-        # weights apply to regions only
-        assert len(weighting) == M_historical.shape[0]
+        if weighting.ndim != 1:
+            raise ValueError('Weighting needs to be vector.')
+        if len(weighting) != M_historical.shape[0]:
+            raise ValueError('Weighting dimension needs to match Regions')
         self.M_historical = M_historical
         # make weights sum to R
         self.weighting = weighting / np.sum(weighting) * M_historical.shape[0]
@@ -107,9 +111,12 @@ class WeightedAveraging(Model):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         wts = self.weighting[m_obs_ixs]
         N = wts.sum()
-        if len(m_current.shape) > 1:
-            raise ValueError('Multi-dim not available.')
-        pred = (m_current[m_obs_ixs] * wts).sum() / N
+        # if len(m_current.shape) > 1:
+        #     raise ValueError('Multi-dim not available.')
+        if m_current.ndim == 2:
+            pred = (m_current[m_obs_ixs] * wts.reshape(-1, 1)).sum(axis=0) / N
+        else:
+            pred = (m_current[m_obs_ixs] * wts).sum(axis=-1) / N
         pred_col = np.ones_like(m_current) * pred
         pred_col[m_obs_ixs] = m_current[m_obs_ixs]
         return pred_col
@@ -357,7 +364,7 @@ class LogisticSubSVD(SubSVD):
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         Uo, mo = self.U[m_obs_ixs], m_current[m_obs_ixs]
-        C = 0 if self.l2_reg == 0 else 1 / self.l2_reg
+        C = LARGE_FLOAT if self.l2_reg == 0 else 1 / self.l2_reg
         logreg = LogisticRegression(C=C, fit_intercept=self.add_bias,
                                     solver='liblinear', tol=1e-6, max_iter=500)
         X, y, wts = self.transform_problem(Uo, mo, None)
@@ -380,7 +387,7 @@ class WeightedLogisticSubSVD(LogisticSubSVD):
     def fit_predict(self, m_current):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
-        C = 0 if self.l2_reg == 0 else 1 / self.l2_reg
+        C = LARGE_FLOAT if self.l2_reg == 0 else 1 / self.l2_reg
         logreg = LogisticRegression(C=C, fit_intercept=self.add_bias,
                                     solver='liblinear', tol=1e-6, max_iter=500)
         X, y, wts = self.transform_problem(Uo, mo, wo)
