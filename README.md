@@ -38,7 +38,7 @@ If no such data is available, one can pass `weighting=None` to ignore weighting.
 #### Online prediction of outcomes
 To predict the outcomes of an ongoing election, unobserved entries of the
 partially observed vector or matrix
-<img src="https://render.githubusercontent.com/render/math?math=y_{V+1}">
+<img src="https://render.githubusercontent.com/render/math?math=y_{V %2B 1}">
 need to be inferred.
 For binary outcomes, we have an R dimensional vector and for multiple options we have a R x K
 dimensional matrix where observed entries are summed to one again.
