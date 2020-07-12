@@ -111,8 +111,6 @@ class WeightedAveraging(Model):
         m_obs_ixs, m_unobs_ixs = self.get_obs_ixs(m_current)
         wts = self.weighting[m_obs_ixs]
         N = wts.sum()
-        # if len(m_current.shape) > 1:
-        #     raise ValueError('Multi-dim not available.')
         if m_current.ndim == 2:
             pred = (m_current[m_obs_ixs] * wts.reshape(-1, 1)).sum(axis=0) / N
         else:
