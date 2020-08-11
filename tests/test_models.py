@@ -1,15 +1,19 @@
 import pytest
 import numpy as np
+from numpy.testing import assert_almost_equal
 
 from predikon import (Model, WeightedAveraging, MatrixFactorisation,
                       GaussianSubSVD, LogisticSubSVD, GaussianTensorSubSVD,
                       LogisticTensorSubSVD)
 
+
 """Setup methods"""
+
 
 def susq(A):
     # sum of squares
     return np.sum(np.square(A))
+
 
 def get_M_w_vec():
     M = np.random.randn(3, 4)
@@ -25,6 +29,7 @@ def get_M_w_mat():
 
 
 """Programmatical Tests"""
+
 
 def test_observed_indexes_vec():
     M, w = get_M_w_vec()
@@ -93,7 +98,35 @@ def test_prediction_not_nan_mat_unreg():
         assert not any(np.isnan(pred[-1]))
 
 
+def test_prediction_fill_nan_only():
+    # Models = [GaussianSubSVD, LogisticSubSVD]
+    M, w = get_M_w_vec()
+    m = np.array([0.0, 0.3, np.nan])
+    w = np.array([2, 7, 2])
+
+    # Gaussian
+    model = GaussianSubSVD(M, w, n_dim=1, l2_reg=1e-5)
+    pred = model.fit_predict(m)
+    # assert not (np.isnan(pred[-1]))
+    # assert np.allclose(pred[:2], m[:2])
+    assert_almost_equal(pred[:2], m[:2])
+
+    # Bernoulli
+    model = LogisticSubSVD(M, w, n_dim=1, l2_reg=1e-5)
+    pred = model.fit_predict(m)
+    # assert not (np.isnan(pred[-1]))
+    # assert np.allclose(pred[:2], m[:2])
+    assert_almost_equal(pred[:2], m[:2])
+
+    # for MODEL in Models:
+    #     model = MODEL(M, w, n_dim=1, l2_reg=1e-5)
+    #     pred = model.fit_predict(m)
+    #     assert not (np.isnan(pred[-1]))
+    #     assert np.allclose(pred[:2], m[:2])
+
+
 """Methodological Tests"""
+
 
 def test_averaging():
     M, w = get_M_w_vec()
@@ -149,6 +182,7 @@ def test_mf_converges():
 
 
 """Exception Tests"""
+
 
 def test_unallowed_weighting_length():
     with pytest.raises(ValueError, match=r".*dimension.*"):
