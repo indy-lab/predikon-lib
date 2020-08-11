@@ -3,3 +3,5 @@ __pycache__
 .coverage
 *.egg-info
 *.DS_STORE
+.ipynb_checkpoints
+notebooks/prepare-data.ipynb
