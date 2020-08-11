@@ -192,7 +192,7 @@ def test_unallowed_weighting_length():
 
 
 def test_unallowed_weighting_shape():
-    with pytest.raises(ValueError, match=r".*vector.*"):
+    with pytest.raises(ValueError, match=r".*dimension.*"):
         M, w = get_M_w_vec()
         w = np.ones((len(w), len(w)))
         model = Model(M, w)
