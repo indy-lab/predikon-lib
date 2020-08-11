@@ -163,7 +163,9 @@ class MatrixFactorisation(Model):
             observed[m_obs_ixs] = True
             self.update_U(m_current, observed)
             self.update_V(m_current, observed)
-        return self.U @ self.V[-1, :]
+        pred = self.U @ self.V[-1, :]
+        pred[m_obs_ixs] = m_current[m_obs_ixs]
+        return pred
 
     def update_U(self, m, observed):
         # (1) update representations of fully observed regions
@@ -271,7 +273,9 @@ class GaussianSubSVD(SubSVD):
             self.l2_reg = 1 / LARGE_FLOAT
         ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
         ridge.fit(Uo, mo, sample_weight=wo)
-        return ridge.predict(self.U)
+        pred = ridge.predict(self.U)
+        pred[m_obs_ixs] = m_current[m_obs_ixs]
+        return pred
 
     def __repr__(self):
         return ('GaussianSubSVD' + ' (dim=' + str(self.n_dim) + ',l2='
@@ -313,7 +317,9 @@ class LogisticSubSVD(SubSVD):
                                     solver='liblinear', tol=1e-6, max_iter=500)
         X, y, wts = self.transform_problem(Uo, mo, wo)
         logreg.fit(X, y, sample_weight=wts)
-        return logreg.predict_proba(self.U)[:, 1]
+        pred = logreg.predict_proba(self.U)[:, 1]
+        pred[m_obs_ixs] = m_current[m_obs_ixs]
+        return pred
 
     def __repr__(self):
         return ('Logistic SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
@@ -378,7 +384,9 @@ class GaussianTensorSubSVD(TensorSubSVD):
             self.l2_reg = 1 / LARGE_FLOAT
         ridge = Ridge(alpha=self.l2_reg, fit_intercept=self.add_bias)
         ridge.fit(Uo, mo, sample_weight=wo)
-        return ridge.predict(self.U)
+        pred = ridge.predict(self.U)
+        pred[m_obs_ixs] = m_current[m_obs_ixs]
+        return pred
 
     def __repr__(self):
         return ('Gaussian SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
@@ -428,9 +436,10 @@ class LogisticTensorSubSVD(TensorSubSVD):
         Uo, mo, wo = self.U[m_obs_ixs], m_current[m_obs_ixs], self.weighting[m_obs_ixs]
         X, y, wts = self.transform_problem(Uo, mo, wo)
         self.model.fit(X, y, sample_weight=wts)
-        return self.model.predict_proba(self.U)
+        pred = self.model.predict_proba(self.U)
+        pred[m_obs_ixs] = m_current[m_obs_ixs]
+        return pred
 
     def __repr__(self):
         return ('Logistic SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
                 str(self.l2_reg) + ')')
-
