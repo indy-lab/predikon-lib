@@ -1,4 +1,5 @@
-# Predikon: Sub-Matrix Factorization for Real-Time Vote Prediction
+# Predikon
+_Sub-Matrix Factorization for Real-Time Vote Prediction_
 
 [![Build Status](https://travis-ci.com/indy-lab/predikon.svg?branch=master)](https://travis-ci.com/indy-lab/predikon)
 [![Coverage Status](https://coveralls.io/repos/github/indy-lab/predikon/badge.svg?branch=master)](https://coveralls.io/github/indy-lab/predikon?branch=master)
@@ -7,7 +8,7 @@ The `predikon` library is the Python library for the algorithm proposed in
 
 > Immer, A.\*, Kristof, V.\*, Grossglauser, M., Thiran, P., [*Sub-Matrix Factorization for Real-Time Vote Prediction*](https://infoscience.epfl.ch/record/278872), KDD 2020
 
-The `Predikon` algorithm enables you to predict aggregate vote outcomes (e.g., national) from partial outcomes (e.g., regional) that are revealed sequentially.
+The `predikon` algorithm enables you to predict aggregate vote outcomes (e.g., national) from partial outcomes (e.g., regional) that are revealed sequentially.
 See the [usage documentation](docs/usage.md) more details on how to use this library or read the paper linked above for more details on how the algorithm works.
 
 ## Installation
@@ -33,7 +34,7 @@ You can then obtain a prediction for the aggregate outcome as (assuming the weig
 
 ```python
 N = w.sum()  # Total number of votes.
-yaggr = y.dot(w) / w.sum()
+yaggr = y.dot(w) / N
 ```
 
 Have a look at the [example notebook](notebooks/example.ipynb) for a complete example of how to use the `predikon` library (with Swiss referenda).
