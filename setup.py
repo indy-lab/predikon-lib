@@ -23,6 +23,7 @@ LONG_DESCR_TYPE = 'text/markdown'
 REQUIREMENTS = requirements('requirements.txt')
 VERSION = "0.2"
 URL = "https://github.com/indy-lab/predikon"
+DOWNLOAD_URL = 'https://github.com/indy-lab/predikon/archive/v0.2.tar.gz'
 LICENSE = "MIT"
 
 
@@ -35,6 +36,7 @@ setup(
     long_description_content_type=LONG_DESCR_TYPE,
     install_requires=REQUIREMENTS,
     url=URL,
+    download_url=DOWNLOAD_URL,
     license=LICENSE,
     packages=PACKAGES,
     zip_safe=False,
