@@ -50,3 +50,9 @@ You can find further information in:
 - The [scientific paper](https://infoscience.epfl.ch/record/278872) introducing the algorithm
 
 And don't hesitate to **reach out us** if you have questions or to **open issues**!
+
+## Requirements
+
+- Python 3.5 and above
+- [NumPy](https://numpy.org) 1.0.0 and above
+- [scikit-learn](https://scikit-learn.org) 0.16.1 and above
