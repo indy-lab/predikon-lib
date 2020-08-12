@@ -1,27 +1,39 @@
 from os import path
 from setuptools import find_packages, setup
 
+CURRENT_DIR = path.abspath(path.dirname(__file__))
+
+
+def read_me(filename):
+    with open(path.join(CURRENT_DIR, filename), encoding='utf-8') as f:
+        return f.read()
+
+
+def requirements(filename):
+    with open(path.join(CURRENT_DIR, filename)) as f:
+        return f.read().splitlines()
+
+
 AUTHORS = "A. Immer, V. Kristof"
 NAME = "predikon"
 PACKAGES = find_packages()
-DESCRIPTION = "Predikon: online prediction of regional and national election results"
-LONG_DESCR = ""
+DESCR = "Predikon: Sub-Matrix Factorization for Real-Time Vote Prediction"
+LONG_DESCR = read_me('README.md')
+LONG_DESCR_TYPE = 'text/markdown'
+REQUIREMENTS = requirements('requirements.txt')
 VERSION = "0.1"
 URL = "https://github.com/indy-lab/predikon"
 LICENSE = "MIT"
-REQUIREMENTS_FILE = "requirements.txt"
-REQUIREMENTS_PATH = path.join(path.abspath(__file__), REQUIREMENTS_FILE)
 
-with open(REQUIREMENTS_FILE) as f:
-    requirements = f.read().splitlines()
 
 setup(
     author=AUTHORS,
     name=NAME,
     version=VERSION,
-    description=DESCRIPTION,
+    description=DESCR,
     long_description=LONG_DESCR,
-    install_requires=requirements,
+    long_description_content_type=LONG_DESCR_TYPE,
+    install_requires=REQUIREMENTS,
     url=URL,
     license=LICENSE,
     packages=PACKAGES,
