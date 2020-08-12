@@ -334,8 +334,10 @@ class LogisticSubSVD(SubSVD):
         return pred
 
     def __repr__(self):
-        return ('Logistic SubSVD' + ' (dim=' + str(self.n_dim) + ',l2=' +
-                str(self.l2_reg) + ')')
+        repr_ = 'LogisticSubSVD'
+        repr_ += ' (dim={}'.format(str(self.n_dim))
+        repr_ += ', l2={})'.format(str(self.l2_reg))
+        return repr_
 
 
 class TensorSubSVD(Model):
@@ -398,7 +400,7 @@ class GaussianTensorSubSVD(TensorSubSVD):
         return pred
 
     def __repr__(self):
-        repr_ = 'Gaussian SubSVD'
+        repr_ = 'GaussianTensorSubSVD'
         repr_ += ' (dim={}'.format(str(self.n_dim))
         repr_ += ', l2={})'.format(str(self.l2_reg))
         return repr_
@@ -451,7 +453,7 @@ class LogisticTensorSubSVD(TensorSubSVD):
         return pred
 
     def __repr__(self):
-        repr_ = 'Logistic SubSVD'
+        repr_ = 'LogisticTensorSubSVD'
         repr_ += ' (dim={}'.format(str(self.n_dim))
         repr_ += ', l2={})'.format(str(self.l2_reg))
         return repr_
