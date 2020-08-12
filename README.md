@@ -30,11 +30,13 @@ pred = model.fit_predict(y)
 # All unobserved entries in `y` are now filled in.
 ```
 
-You can then obtain a prediction for the aggregate outcome as (assuming the weights are the number of valid votes):
+You can then obtain a prediction for the aggregate outcome (assuming the weights are the number of valid votes in this example) as:
 
 ```python
 N = w.sum()  # Total number of votes.
-yaggr = y.dot(w) / N
+ypred = pred.dot(w) / N
+ytrue = y.dot(w) / N
+print(abs(ypred - ytrue))
 ```
 
 Have a look at the [example notebook](notebooks/example.ipynb) for a complete example of how to use the `predikon` library (with Swiss referenda).
