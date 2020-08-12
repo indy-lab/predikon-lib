@@ -11,6 +11,8 @@ The `predikon` library is the Python library for the algorithm proposed in
 The `predikon` algorithm enables you to predict aggregate vote outcomes (e.g., national) from partial outcomes (e.g., regional) that are revealed sequentially.
 See the [usage documentation](docs/usage.md) more details on how to use this library or read the paper linked above for more details on how the algorithm works.
 
+It is the algorithm powering [predikon.ch](http://www.predikon.ch), a platform for real-time vote prediction in Switzerland.
+
 ## Installation
 
 To install the Predikon library from PyPI, run
