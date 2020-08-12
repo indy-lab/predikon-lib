@@ -38,9 +38,11 @@ class Model:
         if weighting is None:
             weighting = np.ones(R)
         if weighting.ndim != 1:
-            raise ValueError(f'Weighting must be an np.array of dimension {R}')
+            raise ValueError(
+                'Weighting must be an np.array of dimension {}'.format(R))
         if len(weighting) != M_historical.shape[0]:
-            raise ValueError(f'Weighting must be an np.array of dimension {R}')
+            raise ValueError(
+                'Weighting must be an np.array of dimension {}'.format(R))
         self.M_historical = M_historical
         # Make weights sum to R.
         self.weighting = weighting / np.sum(weighting) * R
@@ -205,9 +207,9 @@ class MatrixFactorisation(Model):
 
     def __repr__(self):
         repr_ = 'Matrix Factorization'
-        repr_ += f' (dim={str(self.n_dim)}'
-        repr_ += f', lam_V={str(self.lam_V)}'
-        repr_ += f', lam_U={str(self.lam_U)})'
+        repr_ += ' (dim={}'.format(str(self.n_dim))
+        repr_ += ', lam_V={}'.format(str(self.lam_V))
+        repr_ += ', lam_U={})'.format(str(self.lam_U))
         return repr_
 
 
@@ -284,8 +286,8 @@ class GaussianSubSVD(SubSVD):
 
     def __repr__(self):
         repr_ = 'GaussianSubSVD'
-        repr_ += f' (dim={str(self.n_dim)}'
-        repr_ += f', l2={str(self.l2_reg)})'
+        repr_ += ' (dim={}'.format(str(self.n_dim))
+        repr_ += ', l2={})'.format(str(self.l2_reg))
         return repr_
 
 
@@ -397,8 +399,8 @@ class GaussianTensorSubSVD(TensorSubSVD):
 
     def __repr__(self):
         repr_ = 'Gaussian SubSVD'
-        repr_ += f' (dim={str(self.n_dim)}'
-        repr_ += f', l2={str(self.l2_reg)})'
+        repr_ += ' (dim={}'.format(str(self.n_dim))
+        repr_ += ', l2={})'.format(str(self.l2_reg))
         return repr_
 
 
@@ -450,6 +452,6 @@ class LogisticTensorSubSVD(TensorSubSVD):
 
     def __repr__(self):
         repr_ = 'Logistic SubSVD'
-        repr_ += f' (dim={str(self.n_dim)}'
-        repr_ += f', l2={str(self.l2_reg)})'
+        repr_ += ' (dim={}'.format(str(self.n_dim))
+        repr_ += ', l2={})'.format(str(self.l2_reg))
         return repr_
