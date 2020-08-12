@@ -21,7 +21,7 @@ DESCR = "Predikon: Sub-Matrix Factorization for Real-Time Vote Prediction"
 LONG_DESCR = read_me('README.md')
 LONG_DESCR_TYPE = 'text/markdown'
 REQUIREMENTS = requirements('requirements.txt')
-VERSION = "v0.2"
+VERSION = "0.2"
 URL = "https://github.com/indy-lab/predikon"
 LICENSE = "MIT"
 
