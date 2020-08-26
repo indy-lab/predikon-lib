@@ -3,6 +3,8 @@ _Sub-Matrix Factorization for Real-Time Vote Prediction_
 
 [![Build Status](https://travis-ci.com/indy-lab/predikon.svg?branch=master)](https://travis-ci.com/indy-lab/predikon)
 [![Coverage Status](https://coveralls.io/repos/github/indy-lab/predikon/badge.svg?branch=master)](https://coveralls.io/github/indy-lab/predikon?branch=master)
+![PyPI](https://img.shields.io/pypi/v/predikon?color=blue)
+[![Downloads](https://pepy.tech/badge/predikon)](https://pepy.tech/project/predikon)
 
 The `predikon` library is the Python library for the algorithm proposed in
 
