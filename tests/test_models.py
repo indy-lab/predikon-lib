@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from predikon import (Model, WeightedAveraging, MatrixFactorisation,
-                      GaussianSubSVD, LogisticSubSVD,
+                      GaussianSubSVD, BayesianSubSVD, LogisticSubSVD,
                       GaussianTensorSubSVD, LogisticTensorSubSVD)
 
 
@@ -62,6 +62,10 @@ def test_prediction_not_nan_vec():
         model = MODEL(M, w, n_dim=1)
         pred = model.fit_predict(m)
         assert not (np.isnan(pred[-1]))
+    # separately test for Bayesian
+    model = BayesianSubSVD(M, w, n_dim=1)
+    pred, pred_std = model.fit_predict(m)
+    assert not (np.isnan(pred[-1]))
 
 
 def test_prediction_not_nan_mat():
@@ -108,6 +112,14 @@ def test_prediction_fill_nan_only():
         pred = model.fit_predict(m)
         assert not (np.isnan(pred[-1]))
         assert np.allclose(pred[:2], m[:2])
+
+    # Bayesian model with std
+    model = BayesianSubSVD(M, w, n_dim=1)
+    pred, pred_std = model.fit_predict(m)
+    assert not (np.isnan(pred[-1]))
+    assert np.allclose(pred[:2], m[:2])
+    # observed entries have no uncertainty!
+    assert np.allclose(pred_std[:2], np.zeros_like(m[:2]))
 
 
 """Methodological Tests"""
@@ -179,13 +191,15 @@ def test_repr_vec():
     mf_repr = 'Matrix Factorization (dim=10, lam_V=0.1, lam_U=0.1)'
     gaus_repr = 'GaussianSubSVD (dim=10, l2=0.1)'
     bern_repr = 'LogisticSubSVD (dim=10, l2=0.1)'
+    bays_repr = 'BayesianSubSVD (dim=10)'
     # Test representations.
     MF = MatrixFactorisation
     repr2model = {
         wa_repr: WeightedAveraging(M),
         mf_repr: MF(M, w, n_dim=d, lam_V=l2, lam_U=l2),
         gaus_repr: GaussianSubSVD(M, w, n_dim=d, l2_reg=l2),
-        bern_repr: LogisticSubSVD(M, w, n_dim=d, l2_reg=l2)
+        bern_repr: LogisticSubSVD(M, w, n_dim=d, l2_reg=l2),
+        bays_repr: BayesianSubSVD(M, w, n_dim=d)
     }
     for repr_, model in repr2model.items():
         assert repr_ == model.__repr__()

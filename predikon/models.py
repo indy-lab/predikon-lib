@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.linear_model import Ridge, LogisticRegression
+from sklearn.linear_model import Ridge, LogisticRegression, BayesianRidge
 
 
 LARGE_FLOAT = 1e9
@@ -288,6 +288,34 @@ class GaussianSubSVD(SubSVD):
         repr_ = 'GaussianSubSVD'
         repr_ += ' (dim={}'.format(str(self.n_dim))
         repr_ += ', l2={})'.format(str(self.l2_reg))
+        return repr_
+
+
+class BayesianSubSVD(SubSVD):
+    """Bayesian version of the GaussianSubSVD model.
+
+    The observation noise and prior precision are automatically learned using
+    empirical Bayes.
+
+    Attributes:
+        See base class.
+    """
+
+    def fit_predict(self, m_current):
+        obs, _ = self.get_obs_ixs(m_current)
+        Uo, mo, wo = self.U[obs], np.copy(m_current)[obs], self.weighting[obs]
+        ridge = BayesianRidge(fit_intercept=self.add_bias, alpha_init=None,
+                              lambda_init=None)
+        ridge.fit(Uo, mo, sample_weight=wo)
+        pred, pred_std = ridge.predict(self.U, return_std=True)
+        pred[obs] = m_current[obs]
+        # standard deviation of observed regions is 0
+        pred_std[obs] = 0.
+        return pred, pred_std
+
+    def __repr__(self):
+        repr_ = 'BayesianSubSVD'
+        repr_ += ' (dim={})'.format(str(self.n_dim))
         return repr_
 
 
