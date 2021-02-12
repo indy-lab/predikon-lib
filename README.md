@@ -1,7 +1,7 @@
 # Predikon
 _Sub-Matrix Factorization for Real-Time Vote Prediction_
 
-[![Build Status](https://travis-ci.com/indy-lab/predikon.svg?branch=master)](https://travis-ci.com/indy-lab/predikon)
+[![Build Status](https://travis-ci.com/indy-lab/predikon-lib.svg?branch=master)](https://travis-ci.com/indy-lab/predikon-lib)
 [![Coverage Status](https://coveralls.io/repos/github/indy-lab/predikon/badge.svg?branch=master)](https://coveralls.io/github/indy-lab/predikon?branch=master)
 [![PyPI](https://img.shields.io/pypi/v/predikon?color=blue)](https://pypi.org/project/predikon/)
 [![Downloads](https://pepy.tech/badge/predikon)](https://pepy.tech/project/predikon)
