@@ -8,7 +8,7 @@ _Sub-Matrix Factorization for Real-Time Vote Prediction_
 
 The `predikon` library is the Python library for the algorithm proposed in
 
-> Immer, A.\*, Kristof, V.\*, Grossglauser, M., Thiran, P., [*Sub-Matrix Factorization for Real-Time Vote Prediction*](https://infoscience.epfl.ch/record/278872), KDD 2020
+> Alexander Immer\*, Victor Kristof\*, Matthias Grossglauser, Patrick Thiran, [*Sub-Matrix Factorization for Real-Time Vote Prediction*](https://infoscience.epfl.ch/record/278872), KDD 2020
 
 The `predikon` algorithm enables you to predict aggregate vote outcomes (e.g., national) from partial outcomes (e.g., regional) that are revealed sequentially.
 See the [usage documentation](docs/usage.md) more details on how to use this library or read the paper linked above for more details on how the algorithm works.
