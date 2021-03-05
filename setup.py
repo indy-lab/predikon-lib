@@ -22,7 +22,7 @@ LONG_DESCR = read_me('README.md')
 LONG_DESCR_TYPE = 'text/markdown'
 REQUIREMENTS = requirements('requirements.txt')
 VERSION = "0.3"
-URL = "https://github.com/indy-lab/predikon"
+URL = "https://github.com/indy-lab/predikon-lib"
 # DOWNLOAD_URL = 'https://github.com/indy-lab/predikon/archive/v0.2.tar.gz'
 LICENSE = "MIT"
 
