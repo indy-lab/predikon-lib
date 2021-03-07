@@ -1,6 +1,5 @@
 import numpy as np
-from sklearn.linear_model import Ridge, LogisticRegression, BayesianRidge
-
+from sklearn.linear_model import BayesianRidge, LogisticRegression, Ridge
 
 LARGE_FLOAT = 1e9
 
@@ -39,10 +38,12 @@ class Model:
             weighting = np.ones(R)
         if weighting.ndim != 1:
             raise ValueError(
-                'Weighting must be an np.array of dimension {}'.format(R))
+                'Weighting must be an np.array of dimension {}'.format(R)
+            )
         if len(weighting) != M_historical.shape[0]:
             raise ValueError(
-                'Weighting must be an np.array of dimension {}'.format(R))
+                'Weighting must be an np.array of dimension {}'.format(R)
+            )
         self.M_historical = M_historical
         # Make weights sum to R.
         self.weighting = weighting / np.sum(weighting) * R
@@ -75,8 +76,10 @@ class Model:
             unobserved = np.isnan(m_current)
         elif m_current.ndim == 2:
             R, P = m_current.shape
-            assert (R == self.M_historical.shape[0] and
-                    P == self.M_historical.shape[2])
+            assert (
+                R == self.M_historical.shape[0]
+                and P == self.M_historical.shape[2]
+            )
             # R x P dim.
             unobserved = np.any(np.isnan(m_current), axis=-1)
 
@@ -138,21 +141,23 @@ class MatrixFactorisation(Model):
         lam_V: Regularizer for latent factors `V`.
     """
 
-    def __init__(self,
-                 M_historical,
-                 weighting,
-                 n_iter=20,
-                 n_dim=25,
-                 lam_U=1e-1,
-                 lam_V=1e-1):
+    def __init__(
+        self,
+        M_historical,
+        weighting,
+        n_iter=20,
+        n_dim=25,
+        lam_U=1e-1,
+        lam_V=1e-1,
+    ):
         super().__init__(M_historical, weighting)
         self.n_iter_cache = n_iter
         if len(M_historical.shape) > 2:
             raise ValueError('Tensor not factorisable.')
         # Initiatialize like netflix prize papers.
-        U = np.random.rand(len(M_historical), n_dim+1) / (n_dim+1)
+        U = np.random.rand(len(M_historical), n_dim + 1) / (n_dim + 1)
         U[:, -1] = 1.0
-        V = np.random.rand(len(M_historical[0])+1, n_dim+1) / (n_dim+1)
+        V = np.random.rand(len(M_historical[0]) + 1, n_dim + 1) / (n_dim + 1)
         self.U, self.V = U, V
         self.lam_U = lam_U
         self.lam_V = lam_V
@@ -193,7 +198,7 @@ class MatrixFactorisation(Model):
     def update_V(self, m, obs):
         # (1) Update all prior vote representations (fully observed ones).
         B = (self.M_historical.T @ self.U).T
-        eye = np.eye(self.n_dim+1)
+        eye = np.eye(self.n_dim + 1)
         # Don't regularize bias.
         eye[-1, -1] = 0
         A = self.U.T @ self.U + self.lam_V * eye
@@ -246,13 +251,15 @@ class SubSVD(Model):
             determines the feature importances (default: True.
     """
 
-    def __init__(self,
-                 M_historical,
-                 weighting=None,
-                 n_dim=10,
-                 add_bias=True,
-                 l2_reg=1e-5,
-                 keep_svals=True):
+    def __init__(
+        self,
+        M_historical,
+        weighting=None,
+        n_dim=10,
+        add_bias=True,
+        l2_reg=1e-5,
+        keep_svals=True,
+    ):
 
         if M_historical.ndim > 2:
             raise ValueError('Tensor not factorizable. Use TensorSubSVD.')
@@ -301,16 +308,52 @@ class BayesianSubSVD(SubSVD):
         See base class.
     """
 
+    def __init__(
+        self,
+        M_historical,
+        weighting=None,
+        n_dim=10,
+        add_bias=True,
+        keep_svals=True,
+        alpha_init=None,
+        lambda_init=None,
+        alpha_1=1e-6,
+        alpha_2=1e-6,
+        lambda_1=1e-6,
+        lambda_2=1e-6,
+    ):
+        super().__init__(
+            M_historical,
+            weighting=weighting,
+            n_dim=n_dim,
+            add_bias=add_bias,
+            keep_svals=keep_svals,
+        )
+        self.alpha_init = alpha_init
+        self.lambda_init = lambda_init
+        self.alpha_1 = alpha_1
+        self.alpha_2 = alpha_2
+        self.lambda_1 = lambda_1
+        self.lambda_2 = lambda_2
+
     def fit_predict(self, m_current):
         obs, _ = self.get_obs_ixs(m_current)
         Uo, mo, wo = self.U[obs], np.copy(m_current)[obs], self.weighting[obs]
-        ridge = BayesianRidge(fit_intercept=self.add_bias, alpha_init=None,
-                              lambda_init=None)
+        ridge = BayesianRidge(
+            fit_intercept=self.add_bias,
+            alpha_init=self.alpha_init,
+            lambda_init=self.lambda_init,
+            alpha_1=self.alpha_1,
+            alpha_2=self.alpha_2,
+            lambda_1=self.lambda_1,
+            lambda_2=self.lambda_2,
+        )
         ridge.fit(Uo, mo, sample_weight=wo)
         pred, pred_std = ridge.predict(self.U, return_std=True)
         pred[obs] = m_current[obs]
         # standard deviation of observed regions is 0
-        pred_std[obs] = 0.
+        pred_std[obs] = 0.0
+        self.model = ridge
         return pred, pred_std
 
     def __repr__(self):
@@ -340,7 +383,7 @@ class LogisticSubSVD(SubSVD):
 
         n = Uo.shape[0]
         wo = np.tile(wo, 2)
-        y = np.zeros(2*n)
+        y = np.zeros(2 * n)
         y[:n] = 1
         wts = np.tile(mo, 2)
         wts[n:] = 1 - wts[n:]
@@ -353,8 +396,13 @@ class LogisticSubSVD(SubSVD):
         obs, unobs = self.get_obs_ixs(m_current)
         Uo, mo, wo = self.U[obs], m_current[obs], self.weighting[obs]
         C = LARGE_FLOAT if self.l2_reg == 0 else 1 / self.l2_reg
-        logreg = LogisticRegression(C=C, fit_intercept=self.add_bias,
-                                    solver='liblinear', tol=1e-6, max_iter=500)
+        logreg = LogisticRegression(
+            C=C,
+            fit_intercept=self.add_bias,
+            solver='liblinear',
+            tol=1e-6,
+            max_iter=500,
+        )
         X, y, wts = self.transform_problem(Uo, mo, wo)
         logreg.fit(X, y, sample_weight=wts)
         pred = logreg.predict_proba(self.U)[:, 1]
@@ -400,8 +448,15 @@ class TensorSubSVD(Model):
             Otherwise it determines the feature importances.
     """
 
-    def __init__(self, M_historical, weighting, n_dim=10, add_bias=True,
-                 l2_reg=1e-5, keep_svals=True):
+    def __init__(
+        self,
+        M_historical,
+        weighting,
+        n_dim=10,
+        add_bias=True,
+        l2_reg=1e-5,
+        keep_svals=True,
+    ):
         if len(M_historical.shape) < 3:
             raise ValueError('Requires Tensor')
         super().__init__(M_historical, weighting)
@@ -440,15 +495,29 @@ class LogisticTensorSubSVD(TensorSubSVD):
     the logistic model (categorical GLM) for warmstarts.
     """
 
-    def __init__(self, M_historical, weighting, n_dim=10, add_bias=True,
-                 l2_reg=1e-5, keep_svals=True):
-        super().__init__(M_historical, weighting,
-                         n_dim, add_bias, l2_reg, keep_svals)
+    def __init__(
+        self,
+        M_historical,
+        weighting,
+        n_dim=10,
+        add_bias=True,
+        l2_reg=1e-5,
+        keep_svals=True,
+    ):
+        super().__init__(
+            M_historical, weighting, n_dim, add_bias, l2_reg, keep_svals
+        )
         C = LARGE_FLOAT if self.l2_reg == 0 else 1 / self.l2_reg
-        self.model = LogisticRegression(C=C, fit_intercept=add_bias, tol=1e-6,
-                                        solver='newton-cg', max_iter=5000,
-                                        multi_class='multinomial', n_jobs=4,
-                                        warm_start=True)
+        self.model = LogisticRegression(
+            C=C,
+            fit_intercept=add_bias,
+            tol=1e-6,
+            solver='newton-cg',
+            max_iter=5000,
+            multi_class='multinomial',
+            n_jobs=4,
+            warm_start=True,
+        )
 
     @staticmethod
     def transform_problem(Uo, mo, wo):
